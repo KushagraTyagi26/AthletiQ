@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 32% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 32% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 32% 14%;
+    --primary: 356 73% 47%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 224 32% 14%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 204 80% 41%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 356 73% 47%;
+    --chart-1: 356 73% 47%;
+    --chart-2: 204 80% 41%;
+    --chart-3: 0 0% 30%;
+    --chart-4: 24 80% 55%;
+    --chart-5: 280 60% 55%;
+    --radius: 0.625rem;
+    --sidebar: 356 73% 28%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-muted: 0 0% 100% 0.55;
+    --sidebar-border: 0 0% 100% 0.15;
+  }
+  .dark {
+    --background: 224 32% 8%;
+    --foreground: 210 20% 98%;
+    --card: 224 30% 11%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 30% 11%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 356 73% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 223 24% 18%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 223 24% 18%;
+    --muted-foreground: 215 16% 65%;
+    --accent: 204 80% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 223 24% 22%;
+    --input: 223 24% 22%;
+    --ring: 356 73% 52%;
+    --chart-1: 356 73% 52%;
+    --chart-2: 204 80% 50%;
+    --chart-3: 0 0% 65%;
+    --chart-4: 24 80% 60%;
+    --chart-5: 280 60% 60%;
+    --sidebar: 356 73% 18%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-muted: 0 0% 100% 0.55;
+    --sidebar-border: 0 0% 100% 0.15;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+  }
+}
