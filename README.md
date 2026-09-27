@@ -1,70 +1,287 @@
-# AthletiQ — Cycling Workload & Lactate Curve Analyzer
+# AthletiQ
 
-A complete full-stack project using **real exercise-lab measurements** and **polynomial curve fitting (degree 2)**. The frontend uses Vite, the backend uses FastAPI and scikit-learn, and the repository includes Jupyter notebooks, tests, a reproducible data-preparation script, original research data, and `.gitignore`. There is no synthetic or demo CSV.
+### Polynomial Regression for Cycling Blood Lactate Estimation
 
-## Data and meaning
+AthletiQ is a full-stack machine-learning application that estimates **blood lactate concentration (mmol/L)** from six inputs collected in graded cycling exercise tests. It combines **degree-2 polynomial curve fitting**, a FastAPI backend, and an interactive Next.js dashboard.
 
-The original [Trinity College Dublin graded exercise-test dataset](https://zenodo.org/records/10841412) (Donne et al., version 2) is bundled in `data/raw/graded_tests.zip`. The source MD5 checksum is verified by `scripts/prepare_graded_tests.py`. The processed file `data/processed/cycling_lactate.csv` has **2,102 real cycling power/lactate pairs from 279 test files**. It fits **cycling workload in watts → measured blood lactate in mmol/L**. This is an acute physiological response curve, not a predictor of future match performance or long-term training effects. Read [docs/DATASET.md](docs/DATASET.md) for filtering, evaluation and attribution.
+AthletiQ models how blood lactate responds to cycling power, giving athletes and coaches a way to explore exercise intensity and physiological response. It does not directly predict race results or overall athletic performance.
 
-## Folder structure
+> Predictions describe patterns across the source tests. They are not individualized lactate thresholds, diagnoses, or training prescriptions.
+
+---
+
+## Project Highlights
+
+- Real graded exercise-test data published by the Trinity College Dublin Human Performance Laboratory.
+- **2,065** complete cycling stage observations from **276** test files for the six-input model.
+- Six inputs: power, heart rate, VO₂, height, weight, and age.
+- Degree-2 polynomial features, including squared terms and pairwise interactions.
+- Grouped 80/20 split by test file: **1,645 training** and **420 held-out** stage observations.
+- Fair comparison with a power-only quadratic model using the **same rows and split**.
+- Live prediction and interactive real-data charts through FastAPI, Next.js, and Recharts.
+
+---
+
+## Dataset
+
+**Source:** [Donne et al., *Graded Incremental Test Data (Cycling, Running, Kayaking, Rowing)*, Trinity College Dublin Human Performance Laboratory, Zenodo record 10841412](https://zenodo.org/records/10841412).
+
+The original archive is stored at `data/raw/graded_tests.zip`. The six-input loader verifies its published MD5 checksum (`f64cb1bf4d66129daed6c1954ea6ca9f`) and retains cycling stages with all six valid predictors and measured blood lactate. It yields **2,065 real stage observations from 276 test files**. The older power-only export has **2,102 pairs from 279 files**; its counts and metrics refer to a different input subset.
+
+| Item | Six-input dataset |
+| --- | ---: |
+| Complete measured cycling stages | 2,065 |
+| Cycling test files | 276 |
+| Training stages | 1,645 |
+| Held-out stages | 420 |
+| Input variables | 6 |
+| Target | Measured blood lactate (mmol/L) |
+
+### Selected Features
+
+| Feature | API field | Unit | Meaning |
+| --- | --- | --- | --- |
+| Cycling power | `power` | W | Workload at the cycling stage |
+| Heart rate | `heart_rate` | bpm | Heart rate measured during the stage |
+| Oxygen uptake | `vo2` | mL/kg/min | Mass-normalized VO₂ measured during the stage |
+| Height | `height` | m | Participant height |
+| Weight | `weight` | kg | Participant body mass |
+| Age | `age` | years | Calculated from birth date and test date |
+
+**Prediction target:** `lactate`, measured blood lactate concentration in mmol/L. Scatter-chart points represent genuine dataset measurements.
+
+---
+
+## Machine Learning Pipeline
+
+1. Verify the research archive checksum and read the cycling test files.
+2. Keep stages with six valid inputs and measured lactate; derive age from source dates.
+3. Split whole test files using `GroupShuffleSplit(test_size=0.2, random_state=42)`.
+4. Fit `StandardScaler → PolynomialFeatures(degree=2, include_bias=False) → LinearRegression` using training stages.
+5. Evaluate on held-out files with MAE, RMSE, and R²; compare with a power-only quadratic baseline fitted on the identical split.
+6. Expose predictions and chart data through FastAPI.
+
+Six input variables expand into **27 model terms**: six first-order values, six squares, and 15 pairwise interactions, plus an intercept learned by linear regression. The model is nonlinear in its input variables while its coefficients are fitted using linear regression.
+
+### Why Polynomial Curve Fitting?
+
+Blood lactate need not rise at a constant rate as exercise intensity changes. Degree-2 polynomial regression captures curvature and interactions among measured inputs. A model-response chart varies one input across its measured range while holding the other five at the current form values. Those curves are **model predictions**, not new lab observations.
+
+---
+
+## Regression Model Comparison
+
+Both models use the **same 2,065 complete observations** and **420 held-out stages** from the same grouped split.
+
+| Model | Inputs | MAE ↓ (mmol/L) | RMSE ↓ (mmol/L) | R² ↑ |
+| --- | --- | ---: | ---: | ---: |
+| Power-only degree-2 baseline | Power | 1.1214 | 1.6630 | 0.5504 |
+| **Six-input degree-2 model** | **All six features** | **0.8633** | **1.2826** | **0.7325** |
+
+The additional measured inputs improved held-out error in this experiment. Test-file IDs have not been verified as unique participant IDs.
+
+---
+
+## Final Model Performance
+
+| Metric | Six-input degree-2 polynomial regression |
+| --- | ---: |
+| Mean absolute error | **0.8633 mmol/L** |
+| Root mean squared error | **1.2826 mmol/L** |
+| R² | **0.7325** |
+| Held-out stages | **420** |
+
+---
+
+## Visual Analysis
+
+**Scatter plots and histograms show measured data. Polynomial response curves show fitted model outputs.**
+
+### 1. Features vs Blood Lactate
+
+Measured cycling power, heart rate, VO₂, and height compared with measured blood lactate.
+
+![Measured features versus blood lactate](docs/screenshots/01-feature-vs-lactate.png)
+
+### 2. Feature-to-Feature Comparisons
+
+Power versus heart rate and power versus VO₂, colored by measured blood lactate.
+
+![Measured power versus heart rate and VO2](docs/screenshots/02-feature-comparisons.png)
+
+### 3. Additional Feature Comparisons
+
+Heart rate versus VO₂ and weight versus VO₂, colored by measured blood lactate.
+
+![Measured heart rate and weight versus VO2](docs/screenshots/03-additional-feature-comparisons.png)
+
+### 4. Polynomial Model Responses
+
+Predicted lactate when one feature varies and the other five remain at the selected inputs; a dotted line marks the current value.
+
+![Polynomial model response charts](docs/screenshots/04-model-responses.png)
+
+### 5. Mean Lactate by Cycling Power Bin
+
+Measured mean lactate across 50 W power intervals.
+
+![Measured lactate grouped by cycling power](docs/screenshots/05-power-bin-lactate.png)
+
+### 6. Blood Lactate Distribution
+
+Frequency of measured stages in 2 mmol/L lactate intervals.
+
+![Measured blood lactate distribution](docs/screenshots/06-lactate-distribution.png)
+
+---
+
+## Application
+
+### Prediction
+
+Enter six measurements and obtain a live estimate from the trained model. The prediction view also displays a chart driven by the selected values.
+
+Request to `POST /api/predict/six-input`:
+
+```json
+{
+  "power": 200,
+  "heart_rate": 150,
+  "vo2": 45,
+  "height": 1.75,
+  "weight": 70,
+  "age": 30
+}
+```
+
+Verified example response:
+
+```json
+{
+  "lactate": 1.113,
+  "unit": "mmol/L",
+  "model": "Six-input polynomial regression (degree 2)"
+}
+```
+
+### Feature Explorer
+
+Explore all six inputs with measured feature-versus-lactate plots, feature-to-feature comparisons, and fitted model-response charts.
+
+### Data Insights
+
+Inspect real measured lactate distributions, power-bin averages, and recorded feature ranges.
+
+### How It Works, Polynomial Curve Fitting, and Methodology
+
+Learn how the source is filtered, how quadratic features are fitted, what a prediction means, and where interpretation requires care.
+
+---
+
+## System Architecture
+
+```mermaid
+flowchart TB
+    A["Verified exercise-test archive"] --> B["Cycling stages and six inputs"]
+    B --> C["Grouped split and polynomial regression"]
+    C --> D["FastAPI prediction and chart endpoints"]
+    D --> E["Next.js AthletiQ dashboard"]
+```
+
+The six-input model is loaded and fitted once per running API process, then reused in memory. The six-input implementation does not currently save a trained joblib artifact.
+
+---
+
+## Tech Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Machine learning | Python, scikit-learn, pandas, NumPy, openpyxl |
+| Backend | FastAPI, Uvicorn, Pydantic |
+| Frontend | Next.js, React, TypeScript, Tailwind CSS, Recharts |
+| Research | Jupyter notebooks and dataset-preparation scripts |
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Health check |
+| `POST` | `/api/predict/six-input` | Predict lactate from all six inputs |
+| `GET` | `/api/feature-stats` | Observed input ranges and summary statistics |
+| `GET` | `/api/scatter?x=power&y=lactate` | Real measured feature-pair scatter data |
+| `POST` | `/api/model-response/{feature}` | Fitted response varying one feature |
+| `POST` | `/api/response-curve` | Fitted curve over measured cycling-power range |
+| `GET` | `/api/data-insights` | Measured power bins and lactate distribution |
+| `GET` | `/api/model-evaluation` | Same-split baseline and six-input metrics |
+
+Interactive API docs: `http://127.0.0.1:8000/docs`. Older single-input routes may still exist for compatibility; the main dashboard prediction uses `/api/predict/six-input`.
+
+---
+
+## Project Structure
 
 ```text
 AthletiQ/
 ├── backend/
-│   ├── app/{main.py,model.py,__init__.py}
-│   ├── tests/test_model.py
+│   ├── app/
+│   │   ├── main.py                 # FastAPI application and router registration
+│   │   ├── multivariate.py         # Six-input ML pipeline and API routes
+│   │   ├── model.py                # Original power-only model
+│   │   └── store.py                # Legacy dataset/model state
+│   ├── tests/
 │   └── requirements.txt
-├── frontend/
-│   ├── index.html
-│   ├── src/{main.js,style.css}
-│   ├── package.json
-│   └── vite.config.js
-├── notebooks/{01_data_exploration.ipynb,02_polynomial_model.ipynb,03_grouped_validation.ipynb}
-├── scripts/prepare_graded_tests.py
+├── frontend/                       # Current Next.js dashboard
+│   ├── app/
+│   └── package.json
 ├── data/
-│   ├── raw/graded_tests.zip
+│   ├── raw/graded_tests.zip        # Published research archive
 │   └── processed/cycling_lactate.csv
-├── docs/DATASET.md
-├── models/.gitkeep
-├── .env.example
-└── .gitignore
+├── docs/
+│   ├── DATASET.md
+│   └── screenshots/                # Visual Analysis images
+├── notebooks/                      # Earlier exploration/modeling notebooks
+├── scripts/                        # Source-data preparation
+├── .gitignore
+└── README.md
 ```
 
-## Run
+The current notebooks document the earlier power-only exploration. The six-input model and its held-out evaluation are implemented in `backend/app/multivariate.py`.
 
-Python 3.10+ and Node.js 20+ required. From the **AthletiQ root**:
+---
 
-```bash
-python -m venv .venv
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-pip install -r backend/requirements.txt
-uvicorn backend.app.main:app --reload
+## Run Locally
+
+From the **AthletiQ project root** in Windows PowerShell:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload
 ```
 
-In another terminal:
+Open API docs at `http://127.0.0.1:8000/docs`. In a second PowerShell terminal:
 
-```bash
+```powershell
 cd frontend
 npm install
+"NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000" | Set-Content .env.local
 npm run dev
 ```
 
-Visit http://127.0.0.1:5173 ; API docs: http://127.0.0.1:8000/docs. Vite proxies `/api` to the backend. For notebooks, install `jupyter matplotlib`; `openpyxl` is included in backend requirements for source reproduction. Recreate data using `python scripts/prepare_graded_tests.py`.
+Open the local URL printed by Next.js, usually `http://localhost:3000`, or `3001` if 3000 is already occupied. Keep `.env.local` out of version control. The first model request reads the research archive and fits the model; later requests reuse it in the running process.
 
-## Model
+---
 
-`PolynomialFeatures(degree=2)` followed by least-squares `LinearRegression` fits `lactate = c + a × power + b × power²`. Entire test files are held out together. On the training files only, five-fold grouped CV produced MAE 1.238 for the straight line, 1.076 for degree 2 and 1.070 for degree 3. The cubic improvement was only 0.006 mmol/L, so the simpler quadratic remains the deployed choice. On 422 observations from 56 unseen test files: **R² 0.584, MAE 0.955 mmol/L**; the linear baseline achieved **R² 0.535, MAE 1.151 mmol/L**. This is an actual nonlinear regression result on measured data. It is a pooled curve, not a personal lactate threshold or exercise prescription. Test-file IDs might include repeat human participants; see dataset notes.
+## Key Result
 
-## Custom uploads
+The **six-input degree-2 polynomial model** achieved **MAE 0.8633 mmol/L, RMSE 1.2826 mmol/L, and R² 0.7325** on 420 stages from held-out cycling test files. On the same split, the power-only quadratic model achieved **MAE 1.1214 mmol/L and R² 0.5504**.
 
-Upload a UTF-8 CSV with `athlete_id,date,training_load,performance_score`; for lab data these columns mean `test_file_id,test_date,watts,lactate_mmol_L`. The uploader supports up to 5 MB and 100,000 rows. It saves `backend/data/uploaded.csv` locally until reset. The backend saves a trained artifact in `models/athletiq_model.joblib`, keyed by a SHA-256 digest of the dataset and model version. First use trains it; subsequent requests load or reuse it. A changed upload retrains the model. Keep the artifact local: joblib uses pickle and must never load files supplied by untrusted users. The API has no authentication, so restrict it before public hosting.
+---
 
-## Test
+## Limitations
 
-```bash
-python -m unittest discover -s backend/tests -v
-cd frontend && npm run build
-```
+AthletiQ estimates blood lactate from patterns in published cycling tests; it does not directly predict race results, overall athletic performance, or an individual's lactate threshold. Inputs must remain within observed feature ranges. Changing one input while fixing the others can create uncommon physiological combinations. Grouping stages by test file prevents within-file train/test leakage, but repeat participants across distinct files have not been ruled out.
 
-API: `GET /api/health`, `GET /api/analysis`, `POST /api/predict` with `{"training_load":250}`, `POST /api/upload`, `POST /api/reset`.
+**Dataset citation:** Donne et al., Trinity College Dublin Human Performance Laboratory, [Zenodo record 10841412](https://zenodo.org/records/10841412). See [dataset notes](docs/DATASET.md) for provenance and the older power-only experiment.
