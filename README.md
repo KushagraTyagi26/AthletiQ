@@ -54,12 +54,21 @@ The original archive is stored at `data/raw/graded_tests.zip`. The six-input loa
 
 ## Machine Learning Pipeline
 
-1. Verify the research archive checksum and read the cycling test files.
-2. Keep stages with six valid inputs and measured lactate; derive age from source dates.
-3. Split whole test files using `GroupShuffleSplit(test_size=0.2, random_state=42)`.
-4. Fit `StandardScaler → PolynomialFeatures(degree=2, include_bias=False) → LinearRegression` using training stages.
-5. Evaluate on held-out files with MAE, RMSE, and R²; compare with a power-only quadratic baseline fitted on the identical split.
-6. Expose predictions and chart data through FastAPI.
+```mermaid
+flowchart TB
+    A["Verify original exercise-test archive"]
+    B["Select complete cycling stages"]
+    C["Split by test file: 80% train, 20% test"]
+    D["Scale six inputs: StandardScaler"]
+    E["Create degree-2 polynomial features"]
+    F["Fit LinearRegression"]
+    G["Evaluate MAE, RMSE, R² and baseline"]
+    H["Serve predictions and charts"]
+
+    A --> B --> C --> D --> E --> F --> G --> H
+```
+
+The split uses `GroupShuffleSplit(test_size=0.2, random_state=42)`, so stages from the same test file do not appear in both partitions. Model fitting and preprocessing use the training partition only; the held-out partition is used for the final evaluation. The power-only baseline uses the same rows and split.
 
 Six input variables expand into **27 model terms**: six first-order values, six squares, and 15 pairwise interactions, plus an intercept learned by linear regression. The model is nonlinear in its input variables while its coefficients are fitted using linear regression.
 
